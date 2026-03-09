@@ -1,0 +1,45 @@
+name: Daily Morning News
+
+on:
+  schedule:
+    # 每天早上7:30 UTC+8 (UTC时间23:30或00:30，根据夏令时调整)
+    # 这里设置为 UTC 23:30 = 北京时间 7:30（非夏令时）
+    - cron: '30 23 * * *'
+
+  # 允许手动触发
+  workflow_dispatch:
+
+jobs:
+  send-news:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Send morning news
+      env:
+        WECHAT_WEBHOOK_URL: ${{ secrets.WECHAT_WEBHOOK_URL }}
+      run: |
+        python main.py
+
+    - name: Notify on failure
+      if: failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `早报推送失败 - ${new Date().toISOString().split('T')[0]}`,
+            body: '请检查日志和Webhook配置'
+          })
